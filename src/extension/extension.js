@@ -228,6 +228,9 @@ class Extension {
             subscriptions.push(vscode.commands.registerCommand("vs64.createProjectKick", function() {
                 thisInstance.onCommandCreateProject("kick");
             }));
+            subscriptions.push(vscode.commands.registerCommand("vs64.createProjectTmpx", function(){
+                thisInstance.onCommandCreateProject("tmpx");
+            }));
             subscriptions.push(vscode.commands.registerCommand("vs64.createProjectLlvm", function() {
                 thisInstance.onCommandCreateProject("llvm");
             }));

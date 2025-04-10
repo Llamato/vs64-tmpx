@@ -23,6 +23,7 @@ const { Logger, LogLevel } = require('utilities/logger');
 const { Utils } = require('utilities/utils');
 const { Project } = require('project/project');
 const { Build } = require('builder/builder');
+const toolkit = require('../src/project/toolkit');
 
 //-----------------------------------------------------------------------------------------------//
 // Helpers
@@ -151,6 +152,19 @@ describe('project', () => {
         expect(buildTree.deps.get(0).from.substr(-7)).toBe("raw.raw");
         expect(buildTree.deps.get(1).to.substr(-8)).toBe("name.prg");
 
+    });
+
+    test("project_construct_tmpx", () => {
+        const config = {
+            name: "name",
+            toolkit: "tmpx",
+            sources: [
+                "main.asm"
+            ]
+        };
+        
+        const project = setupProject(config);
+    
     });
 
     test("project_build_file_cc65", () => {

@@ -159,6 +159,8 @@ class Project {
             this._outdebug = path.resolve(this._builddir, this._name + ".dbj");
         } else if (toolkit.isBasic) {
             this._outdebug = path.resolve(this._builddir, this._name + ".bmap");
+        } else if (toolkit.isTmpx) {
+            this._outdebug = null;
         }
 
         this._outputs = [
@@ -182,11 +184,11 @@ class Project {
         if (!data.name) { throw("property 'name' is missing."); }
         this._name = data.name;
 
-        if (!data.toolkit) { throw("property 'toolkit' needs to be defined (either 'acme', 'kick', 'llvm', 'cc65', 'oscar64' or 'basic')"); }
+        if (!data.toolkit) { throw("property 'toolkit' needs to be defined (either 'acme', 'kick', 'llvm', 'cc65', 'oscar64', 'basic' or 'tmpx')"); }
         const toolkitId = data.toolkit.toLowerCase();
 
-        if (["acme", "kick", "llvm", "cc65", "oscar64", "basic"].indexOf(toolkitId) < 0) {
-            throw("property 'toolkit' needs to be either 'acme', 'kick', 'llvm', 'cc65', 'oscar64' or 'basic'");
+        if (["acme", "kick", "llvm", "cc65", "oscar64", "basic", "tmpx"].indexOf(toolkitId) < 0) {
+            throw("property 'toolkit' needs to be either 'acme', 'kick', 'llvm', 'cc65', 'oscar64', 'basic', 'tmpx'");
         }
 
         this._toolkit = Toolkit.fromName(toolkitId);
@@ -836,6 +838,10 @@ class Project {
             });
 
             depFiles.add(thisInstance.outfile, dependencies);
+        } else if (toolkit.isTmpx) {
+            // generate one dependency list for all compilation units
+            const dependencies = asmFiles.clone();
+            
         }
 
         const buildTree = {
@@ -1073,6 +1079,34 @@ class Project {
             script.push("build $target | $dbg_out : asm " + Ninja.join(buildTree.asm.array()))
             script.push("");
 
+        } else if (toolkit.isTmpx) {
+            // Temp
+            script.push(Ninja.keyValue("asm_exe", (project.assembler || settings.tmpxExecutable)));
+            script.push("");
+            let cpu = "6510";
+            if (project.machine) {
+                cpu = (project.machine != "none") ? project.machine : null;
+            }
+
+            const flags = new NinjaArgs(
+                "--msvc",
+                "--maxerrors", "99"
+            );
+            let input_path = path.join("$basedir", "src", "main.asm");
+            script.push("");
+
+            script.push("rule res");
+            script.push("    command = $python_exe $rc_exe $rc_flags -o $out $in");
+            script.push("");
+
+            script.push("rule asm");
+            script.push("   depfile = $out.d");
+            script.push("   deps = gcc");
+            script.push("   command = $asm_exe -i $in -o $out");
+            script.push("");
+            script.push("");
+
+            script.push("build $target | $dbg_out : asm " + Ninja.join(buildTree.asm.array()))
         } else if (toolkit.isCC65) {
 
             const flags = new NinjaArgs();
