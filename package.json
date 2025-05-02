@@ -33,6 +33,7 @@
 	"dependencies": {
 		"@vscode/debugadapter": "1.65.0",
 		"await-notify": "^1.0.1",
+		"cjs-loader": "^0.1.0",
 		"fast-xml-parser": "^4.4.0",
 		"vscode-cpptools": "^6.1.0"
 	},
@@ -59,6 +60,8 @@
 		"c64",
 		"commodore",
 		"assembler",
+		"tmpx",
+		"turbo macro pro",
 		"acme",
 		"kickassembler",
 		"llvm",
@@ -108,8 +111,18 @@
 				"category": "VS64"
 			},
 			{
+				"command": "vs64.createProjectTmpx",
+				"title": "Create TMPx Assembler Project",
+				"category": "VS64"
+			},
+			{
 				"command": "vs64.createProjectKick",
 				"title": "Create KickAssembler Project",
+				"category": "VS64"
+			},
+			{
+				"command": "vs64.createProjectTmpx",
+				"title": "Create TMPx Assembler Project",
 				"category": "VS64"
 			},
 			{
@@ -195,6 +208,15 @@
 							"onSettingChanged:vs64.javaExecutable"
 						]
 					},
+					{
+						"id": "setup_tmpx",
+						"title": "Setup Turbo Macro Pro X by Style",
+						"description": "In order to use Kick Assembler, please download, install and add the Kick Assembler install directory to the VS64 preferences.\n\n[Visit Kick Assembler Home Page](http://theweb.dk/KickAssembler)\n\n[Customize Kick Assembler Setup](command:vs64.showSettings?%22kick%22)\n\n[Setup Java Runtime](command:vs64.showSettings?%22java%22)",
+						"media": {
+							"markdown": "resources/walkthroughs/tmpx.md"
+						}
+					},
+
 					{
 						"id": "setup_cc65",
 						"title": "Setup CC65 C-Compiler",
@@ -307,7 +329,7 @@
 					"column": 3,
 					"message": 5
 				}
-			}			
+			}
 		],
 		"languages": [
 			{
@@ -404,6 +426,11 @@
 						"type": "string",
 						"default": "",
 						"description": "Path to KickAssembler installation"
+					},
+					"vs64.tmpxInstallDir": {
+						"type": "string",
+						"default": "",
+						"description": "Path to tmpx installation"
 					},
 					"vs64.llvmInstallDir": {
 						"type": "string",

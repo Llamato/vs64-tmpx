@@ -191,6 +191,7 @@ class Settings {
         this.setupNinja(workspaceConfig);
         this.setupAcme(workspaceConfig);
         this.setupKickAssembler(workspaceConfig);
+        this.setupTmpx(workspaceConfig);
         this.setupLLVM(workspaceConfig);
         this.setupCC65(workspaceConfig);
         this.setupOscar64(workspaceConfig);
@@ -262,6 +263,19 @@ class Settings {
             this.kickExecutable = path.resolve(installDir, "KickAss.jar");
         } else {
             this.kickExecutable = "KickAss.jar";
+        }
+    }
+
+    setupTmpx(workspaceConfig) {
+        const installDir = this.#getAbsDir(workspaceConfig.get("vs64.tmpxInstallDir"));
+        if (installDir) {
+             if (fs.existsSync(path.join(installDir, "tmpx.exe"))) {
+                this.tmpxExecutable = path.resolve(installDir,"tmpx.exe");
+            } else {
+                this.tmpxExecutable = path.resolve(installDir, "tmpx");
+            }
+        }else {
+            this.tmpxExecutable = "tmpx"
         }
     }
 
