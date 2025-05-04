@@ -160,7 +160,7 @@ class Project {
         } else if (toolkit.isBasic) {
             this._outdebug = path.resolve(this._builddir, this._name + ".bmap");
         } else if (toolkit.isTmpx) {
-            this._outdebug = null;
+            this._outdebug = path.resolve(this._builddir, this._name + ".report");
         }
 
         this._outputs = [
@@ -1102,8 +1102,14 @@ class Project {
             script.push("rule asm");
             script.push("   depfile = $out.d");
             script.push("   deps = gcc");
-            script.push("   command = $asm_exe -i $in -o $out");
+            script.push('   command = $asm_exe -i $in -o $out -l "$dbg_out"');
             script.push("");
+
+            buildTree.gen.forEach((to, from) => {
+                script.push(Ninja.build(to, from, "res"));
+            });
+            script.push("");
+
             script.push("");
 
             script.push("build $target | $dbg_out : asm " + Ninja.join(buildTree.asm.array()))
