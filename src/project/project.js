@@ -23,6 +23,7 @@ const { Scanner } = require('project/scanner');
 const { Toolkit } = require('project/toolkit');
 const { Ninja, NinjaArgs } = require('project/ninja');
 const { ProjectItem, TranslationList } = require('project/project_types');
+const { json } = require('stream/consumers');
 
 const logger = new Logger("Project");
 
@@ -547,6 +548,43 @@ class Project {
         }
     }
 
+    #writeTmp06EditorRules() {
+        const settingsFilePath = path.join(this.basedir, ".vscode", "settings.json");
+        const rulers = [31, 40, 80];
+    fs.readFile(settingsFilePath, "utf8", (err, text) => {
+        if (err) {
+            if (err.code === "ENOENT") {
+                const settingsObject = { editor: { rulers: rulers } };
+                const settingsText = JSON.stringify(settingsObject, null, 4);
+                fs.writeFile(settingsFilePath, settingsText, "utf8", (writeErr) => {
+                    if (writeErr) {
+                        console.error("Failed to write settings.json:", writeErr);
+                    }
+                });
+            } else {
+                console.error("Failed to read settings.json:", err);
+            }
+            return;
+        }
+
+        try {
+            const settingsObject = JSON.parse(text);
+            if (!settingsObject.editor) {
+                settingsObject.editor = {};
+            }
+            settingsObject.editor.rulers = rulers;
+            const settingsText = JSON.stringify(settingsObject, null, 4);
+            fs.writeFile(settingsFilePath, settingsText, "utf8", (writeErr) => {
+                if (writeErr) {
+                    console.error("Failed to write settings.json:", writeErr);
+                }
+            });
+        } catch (parseErr) {
+            console.error("Failed to parse settings.json:", parseErr);
+        }
+    });
+    }
+
     #getCompilerExecutable(filename) {
 
         const toolkit = this.toolkit;
@@ -873,7 +911,10 @@ class Project {
             this.#writeCompileCommands();
             this.#writeCppProperties();
         }
-
+        if (toolkit.isTmpx && settings.tmp06CompatibilityMode) {
+            this.#writeTmp06EditorRules();
+        }
+        
         const buildFile = this.buildfile;
 
         if (!forcedOverwrite) {

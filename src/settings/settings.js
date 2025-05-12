@@ -268,9 +268,10 @@ class Settings {
 
     setupTmpx(workspaceConfig) {
         const installDir = this.#getAbsDir(workspaceConfig.get("vs64.tmpxInstallDir"));
+        this.tmp06CompatibilityMode = workspaceConfig.get("vs64.tmp06CompatibilityMode");
         if (installDir) {
              if (fs.existsSync(path.join(installDir, "tmpx.exe"))) {
-                this.tmpxExecutable = path.resolve(installDir,"tmpx.exe");
+                this.tmpxExecutable = path.resolve(installDir, "tmpx.exe");
             } else {
                 this.tmpxExecutable = path.resolve(installDir, "tmpx");
             }

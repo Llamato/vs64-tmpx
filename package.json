@@ -211,12 +211,11 @@
 					{
 						"id": "setup_tmpx",
 						"title": "Setup Turbo Macro Pro X by Style",
-						"description": "In order to use Kick Assembler, please download, install and add the Kick Assembler install directory to the VS64 preferences.\n\n[Visit Kick Assembler Home Page](http://theweb.dk/KickAssembler)\n\n[Customize Kick Assembler Setup](command:vs64.showSettings?%22kick%22)\n\n[Setup Java Runtime](command:vs64.showSettings?%22java%22)",
+						"description": "In order to use Trubo Macro Pro, please download, install and add the Turbo Macro Pro install directory to the VS64 preferences.\n\n[Visit TMPx Home Page](https://turbo.style64.org/docs/table-of-contents)\n\n[Customize TMPx Setup](command:vs64.showSettings?%22tmpx%22)",
 						"media": {
 							"markdown": "resources/walkthroughs/tmpx.md"
 						}
 					},
-
 					{
 						"id": "setup_cc65",
 						"title": "Setup CC65 C-Compiler",
@@ -431,6 +430,11 @@
 						"type": "string",
 						"default": "",
 						"description": "Path to tmpx installation"
+					},
+					"vs64.tmp06CompatibilityMode": {
+						"type": "boolean",
+						"default": false,
+						"description": "Enable TMP06 compatibility mode"
 					},
 					"vs64.llvmInstallDir": {
 						"type": "string",
