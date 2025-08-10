@@ -17,6 +17,7 @@ const fs = require('fs');
 //-----------------------------------------------------------------------------------------------//
 // Required Modules
 //-----------------------------------------------------------------------------------------------//
+const { Constants } = require('settings/settings');
 const { FileCache } = require('utilities/cache');
 const { TokenType, StatementType } = require('language/language_base');
 const { AsmParser, AsmGrammar } = require('language/language_asm');
@@ -104,9 +105,9 @@ class Parser {
 
     static fromType(typeName) {
         let impl = null;
-        if (typeName == "asm") {
+        if (Constants.AssemblerLanguageIds.indexOf(typeName) != -1) {
             impl = new AsmParser();
-        } else if (typeName == "bas") {
+        } else if (typeName == Constants.BasicLanguageId) {
             impl = new BasicParser();
         }
         if (!impl) return null;

@@ -1,6 +1,11 @@
 # Change Log
 All notable changes to the **VS64 Development Environment** extension will be documented in this file.
 
+## 2.6.2 Minor Update
+
+- Fixed bug in language type handling in document symbol provider
+- Bug-fixes and minor improvements
+
 ## 2.6.1 Minor Update
 
 - Bug-fixes and minor improvements
