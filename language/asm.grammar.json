@@ -9,6 +9,9 @@
 			"include": "#acme"
 		},
 		{
+			"include": "#tmpx"
+		},
+		{
 			"include": "#llvm"
 		},
 		{
@@ -308,6 +311,23 @@
 				{
 					"name": "keyword.instructions",
 					"match": "\\!(?i)[\\s]*\\b(ct|convtab|pet|raw|scr|scrxor|tx|text|Text)\\b"
+				}
+			]
+		},
+
+		"tmpx": {
+			"patterns": [
+				{
+					"include": "#tmpx-directives"
+				}
+			]
+		},
+
+		"tmpx-directives": {
+			"patterns": [
+				{
+					"name": "keyword.instructions",
+					"match": "\\.(?i)[\\s]*\\b(screen|null|text|include|repeat|ifeq|ifne|ifmi|ifdef|ifdef|ifndef|endif|text|lbl|block|bend|segment|offs|pron|proff|hidemac|showmac|eor|end|bounce)\\b"
 				}
 			]
 		},
