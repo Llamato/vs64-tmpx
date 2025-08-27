@@ -278,6 +278,8 @@ class Settings {
         }else {
             this.tmpxExecutable = "tmpx"
         }
+        //To be removed when tmpx output format is updated and wrapper no longer required.
+        this.tmpxExecutable = this.pythonExecutable + " " + path.resolve(this.extensionPath, "tools", "tmpw.py") + " " + this.tmpxExecutable;
     }
 
     setupCC65(workspaceConfig) {

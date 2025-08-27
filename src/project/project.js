@@ -1121,7 +1121,6 @@ class Project {
             script.push("");
 
         } else if (toolkit.isTmpx) {
-            // Temp
             script.push(Ninja.keyValue("asm_exe", (project.assembler || settings.tmpxExecutable)));
             script.push("");
             let cpu = "6510";
