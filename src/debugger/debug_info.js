@@ -25,6 +25,7 @@ const { Oscar64DebugInfo } = require('debugger/debug_info_oscar64');
 const { AcmeDebugInfo } = require('debugger/debug_info_acme');
 const { KickDebugInfo } = require('debugger/debug_info_kick');
 const { ElfDebugInfo } = require('debugger/debug_info_elf');
+const { TmpxDebugInfo } = require('debugger/debug_info_tmpx');
 
 class DebugInfo {
 
@@ -106,8 +107,10 @@ class DebugInfo {
 
         if (toolkit.isBasic) {
             BasicDebugInfo.load(this, project, filename);
-        } else if (debugInfoType == ".report") {
+        } else if (debugInfoType == ".report" && toolkit.isAcme) {
             AcmeDebugInfo.load(this, project, filename);
+        } else if (debugInfoType == ".report" && toolkit.isTmpx) {
+            TmpxDebugInfo.load(this, project, filename);
         } else if (debugInfoType == ".elf") {
             ElfDebugInfo.load(this, project, filename);
         } else if (debugInfoType == ".dbj") {
