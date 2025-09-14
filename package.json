@@ -159,6 +159,16 @@
 				"command": "vs64.cleanProject",
 				"title": "Clean project build",
 				"category": "VS64"
+			},
+			{
+				"command": "vs64.makeProgramDisk",
+				"title": "Create Program Disk",
+				"category": "VS64"
+			},
+			{
+				"command": "vs64.makeCodeDisk",
+				"title": "Create Source Code Disk",
+				"category": "VS64"
 			}
 		],
 		"menus": {

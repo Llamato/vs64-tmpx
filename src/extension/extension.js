@@ -253,20 +253,23 @@ class Extension {
             subscriptions.push(vscode.commands.registerCommand("vs64.cleanProject", function() {
                 thisInstance.triggerClean();
             }));
+            subscriptions.push(vscode.commands.registerCommand("vs64.makeProgramDisk", function() {
+                thisInstance.makeProgramDisk();
+            }));
+            subscriptions.push(vscode.commands.registerCommand("vs64.makeCodeDisk", function() {
+                thisInstance.makeCodeDisk();
+            }));
         }
 
         //Register tmpx specifics
-        //TODO do something about magic numbers
-        const maxCodeLineLength = 31;
-        const maxCommentLineLength = 40;
         if(this._settings.tmp06CompatibilityMode){
             this._tmpxDiagnostics = vscode.languages.createDiagnosticCollection('vs64-tmpx');
             subscriptions.push(this._tmpxDiagnostics);
                 vscode.workspace.textDocuments.forEach(document => {
-                thisInstance.placeTmp06CompatibilityWarnings(document, maxCodeLineLength, maxCommentLineLength);
+                thisInstance.placeTmp06CompatibilityWarnings(document);
             });
             vscode.workspace.onDidChangeTextDocument(event => {
-                thisInstance.placeTmp06CompatibilityWarnings(event.document, maxCodeLineLength, maxCommentLineLength);
+                thisInstance.placeTmp06CompatibilityWarnings(event.document);
             });
         }
 
@@ -876,7 +879,7 @@ class Extension {
         }
     }
 
-    placeTmp06CompatibilityWarnings(document, maxCodeLineLength, maxCommentLineLength) {
+    placeTmp06CompatibilityWarnings(document, maxCodeLineLength = 31, maxCommentLineLength = 40) {
         if (document.languageId != "asm") return;
         const diagnostics = []
         for (let lineIndex = 0; lineIndex < document.lineCount; lineIndex++) {
@@ -884,7 +887,7 @@ class Extension {
             const line = document.lineAt(lineIndex);
             const lineLength = line.text.length;
             let maxLineLength = maxCodeLineLength;
-            if (line.text.startsWith(';')) {
+            if (line.text.trimStart().startsWith(';')) {
                 maxLineLength = maxCommentLineLength;
             } if (lineLength > maxLineLength) {
                 const lineEnd = new vscode.Position(lineIndex, lineLength);
@@ -896,6 +899,185 @@ class Extension {
             
         }
         this._tmpxDiagnostics.set(document.uri, diagnostics);
+    }
+
+    //Disks will be deleted by build and not automatically regenerated....
+    //That is bad but better then nothing for now.
+
+    #asciiToPetscii(asciiString) {
+        const asciiBuffer = Buffer.from(asciiString);
+        const petsciiBuffer = Buffer.alloc(asciiBuffer.length);
+        let asciiCursorPos = 0;
+        let petsciiCursorPos = 0;
+        while (asciiCursorPos < asciiBuffer.length) {
+            if (asciiBuffer[asciiCursorPos] == 0x0a){ //Line feed to line feed-Carriage return
+                petsciiBuffer.writeUInt8(0x0d, petsciiCursorPos);
+                asciiCursorPos++;
+                petsciiCursorPos++;
+            }else if (asciiBuffer[asciiCursorPos] == 0x0d && asciiBuffer.length > asciiCursorPos+1 && asciiBuffer[asciiCursorPos+1] == 0x0a) { // Carriage return-Line feed to Carriage return
+                petsciiBuffer.writeUInt8(0x0d, petsciiCursorPos);
+                asciiCursorPos += 2;
+                petsciiCursorPos++;
+            }else if (asciiBuffer[asciiCursorPos] >= 97 && asciiBuffer[asciiCursorPos] < 122) {
+                petsciiBuffer.writeUInt8(asciiBuffer[asciiCursorPos] - 32, petsciiCursorPos); //To upercase ascii so it becomes lowercase Petscii
+                asciiCursorPos++;
+                petsciiCursorPos++;
+            }else if (asciiBuffer[asciiCursorPos] >= 65 && asciiBuffer[asciiCursorPos] < 90) {
+                petsciiBuffer.writeUInt8(asciiBuffer[asciiCursorPos] + 32, petsciiCursorPos); //To lowercase ascii so it becomes uppercase Petscii
+                asciiCursorPos++;
+                petsciiCursorPos++;
+            }else {
+                petsciiBuffer.writeUint8(asciiBuffer[asciiCursorPos], petsciiCursorPos);
+                petsciiCursorPos++;
+                asciiCursorPos++;
+            }
+        }
+        const resultBuffer = Buffer.alloc(petsciiCursorPos);
+        petsciiBuffer.copy(resultBuffer, 0, 0, petsciiCursorPos);
+        return resultBuffer;
+    }
+
+    #makeDiskMenuItemName(name, maxNameLength = 16) {
+        return name.substring(0, maxNameLength);
+    }
+
+    async #binaryStringToByteStatementsString(filePath, skipByteCount = 0) {
+        const bytePrefix = ".byte";
+        const byteSeparator = ",";
+        const hexPrefix = "$";
+        const newline = "\n";
+        const blockEnd = newline + bytePrefix + " ";
+        const inputFile = fs.openSync(filePath, 'rb');
+        const inputBytes = inputFile.readFileSync();
+        inputFile.close();
+        let outputString = bytePrefix + " ";
+        let byteCount = 0;
+        for (let byte of inputBytes) {
+            byteCount += 1;
+            if (skipByteCount >= byteCount) {
+                return "";
+            }
+            if (byteCount > skipByteCount) {
+                const byteString = hexPrefix + byte.toString(16).lower();
+                outputString += byteString;
+            }
+            if ((byte - skipByteCount) % 4 == 0) {
+                outputString += blockEnd;
+            } else {
+                outputString += byteSeparator;
+            }
+        }
+        if (outputString.endsWith(byteSeparator)) {
+            outputString = outputString.substring(0, outputString.length - byteSeparator.length) + newline;
+        } else if (outputString.endsWith(blockEnd)) {
+            outputString = outputString.substring(0, outputString.length - blockEnd.length) + newline;
+        }
+        return outputString;
+    }
+
+    #flattenCode(codeFileName, flattenBinaryIncludes = false) {
+        const project = this._project;
+        let outputString = "";
+        let inputFile = null;
+        try {
+            inputFile = fs.readFileSync(codeFileName, "utf8");
+        } catch (err) {
+            logger.error("failed to read code file: " + err);
+            return "\n";
+        }
+        for (let line of inputFile.split(/\r?\n/)) {
+            line = line.trimEnd();
+            if (line.startsWith(".include ")) {
+                const includePath = line.split(" ")[1].replaceAll('"', '');
+                const absPath = project.basedir + path.sep + includePath;
+                outputString += ";Start of include: " + includePath + "\n";
+                const includeOutput = this.#flattenCode(absPath);
+                if (includeOutput == "") {
+                    outputString += line;
+                } else {
+                    outputString += includeOutput + ";End of Include: " + includePath;
+                }
+            } else if (flattenBinaryIncludes && line.startsWith(".binary")) {
+                const includeParams = line.split();
+                const includeParamsString = includeParams[1];
+                const includeParamsList = includeParamsString.split(",");
+                const includePathParam = includeParamsList[0];
+                let bytesToSkip = 0;
+                try {
+                    if (includeParamsList.length > 1) {
+                        const bytesToSkipParam = includeParamsList[1];
+                        bytesToSkip = int(bytesToSkipParam);
+                    }
+                } catch (err) {
+                    bytesToSkip = 0;
+                }
+                const includePath = includePathParam.replace('"', '');
+                includeOutput = this.#binaryStringToByteStatementsString(includePath, bytesToSkip);
+                if (includeOutput == "") {
+                    outputString += line;
+                } else {
+                    outputString += includeOutput;
+                }
+            } else {
+                outputString += line;
+            }
+            outputString += '\n';
+        }
+        return outputString;
+    }
+
+    async makeProgramDisk() {
+        const {Disk} = require('../disk/disk');
+        const diskTrackCount = 35;
+        const diskImageType = "d64";
+        const project = this._project;
+        const sources = project.sources; //If project has not been build at least once sources will be empty. 
+        const includes = project.includes.slice(1);
+        logger.info("Creating program disk...");
+        try {
+            let disk = new Disk();
+            disk.create(this.#makeDiskMenuItemName(project.name), "01", diskTrackCount);
+            disk.storeFile(project.outfile, this.#makeDiskMenuItemName(path.basename(project.outfile)));
+            for (const assetFile of includes) {
+                disk.storeFile(assetFile, this.#makeDiskMenuItemName(path.basename(assetFile)));
+            }
+            disk.write(project.builddir + path.sep + project.name + ".prg." + diskImageType);
+            logger.info("Program disk created");
+        }catch (err) {
+            logger.error("failed to create program disk: " + err);
+        }
+    }
+
+    async makeCodeDisk(flattenAsmSources = true, flattenBinaryIncludes = false, includeAssets = true) {
+        const {Disk} = require('../disk/disk');
+        const diskTrackCount = 35;
+        const diskImageType = "d64";
+        const project = this._project;
+        const sources = project.sources; //If project has not been build at least once sources will be empty.
+        const includes = project.includes.slice(1);
+        logger.info("Creating source code disk...");
+        try {
+            let disk = new Disk();
+            disk.create(this.#makeDiskMenuItemName(project.name), "02", diskTrackCount);
+            for (const sourceFile of sources) {
+                disk.storeFile(sourceFile.filename, this.#makeDiskMenuItemName(path.basename(sourceFile.filename)), "seq"); 
+            }
+            if (flattenAsmSources && project.toolkit.name == "tmpx") {
+                const mainSourceFilename = sources[0].filename;
+                const flatFileBasename = "flat" + path.basename(mainSourceFilename);
+                const flatMain = this.#flattenCode(mainSourceFilename, flattenBinaryIncludes);
+                disk.writeFile(this.#makeDiskMenuItemName(flatFileBasename), "seq", this.#asciiToPetscii(flatMain));
+            }
+            if (includeAssets) {
+                for (const assetFile of includes) {
+                    disk.storeFile(assetFile, this.#makeDiskMenuItemName(path.basename(assetFile)));
+                }
+            }
+            disk.write(project.builddir + path.sep + project.name + ".asm." + diskImageType);
+            logger.info("Source code disk created");
+        }catch (err) {
+            logger.error("failed to create source code disk: " + err);
+        }
     }
 }
 
