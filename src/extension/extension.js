@@ -268,6 +268,7 @@ class Extension {
                 vscode.workspace.textDocuments.forEach(document => {
                 thisInstance.placeTmp06CompatibilityWarnings(document);
             });
+
             vscode.workspace.onDidChangeTextDocument(event => {
                 thisInstance.placeTmp06CompatibilityWarnings(event.document);
             });
@@ -879,7 +880,7 @@ class Extension {
         }
     }
 
-    placeTmp06CompatibilityWarnings(document, maxCodeLineLength = 31, maxCommentLineLength = 40) {
+    placeTmp06LengthWarnings(document, maxCodeLineLength = 31, maxCommentLineLength = 40) {
         if (document.languageId != "asm") return;
         const diagnostics = []
         for (let lineIndex = 0; lineIndex < document.lineCount; lineIndex++) {
@@ -889,15 +890,42 @@ class Extension {
             let maxLineLength = maxCodeLineLength;
             if (line.text.trimStart().startsWith(';')) {
                 maxLineLength = maxCommentLineLength;
-            } if (lineLength > maxLineLength) {
+            } 
+            if (lineLength > maxLineLength) {
                 const lineEnd = new vscode.Position(lineIndex, lineLength);
                 const range = new vscode.Range(lineStart, lineEnd);
                 const diagnostic = new vscode.Diagnostic(range, "Line exceeds " + maxLineLength + " characters, will not display correctly in Turbo Macro Pro 06", vscode.DiagnosticSeverity.Warning);
                 diagnostic.source = 'vs64-tmpx';
                 diagnostics.push(diagnostic);
             }
-            
         }
+        return diagnostics;
+    }
+
+    placeTmp06incompatiblePseudoOpWarnings(document) {
+        const incompatiblePseudoOps = [".repeat", ".screen", ".ifdef", ".ifndef", ".binary", ".bounce"];
+        if(document.languageId != "asm") return;
+        const diagnostics = [];
+        for (let lineIndex = 0; lineIndex < document.lineCount; lineIndex++) {
+            const lineStart = new vscode.Position(lineIndex, 0);
+            const line = document.lineAt(lineIndex);
+            for (let incompatiblePseudoOp of incompatiblePseudoOps) {
+                if (line.text.trimStart().startsWith(incompatiblePseudoOp)) {
+                    const opEnd = new vscode.Position(lineIndex, incompatiblePseudoOp.length);
+                    const range = new vscode.Range(lineStart, opEnd);
+                    const diagnostic = new vscode.Diagnostic(range, "incompatible pseudo-op: " + incompatiblePseudoOp, vscode.DiagnosticSeverity.Warning);
+                    diagnostic.source = 'vs64-tmpx';
+                    diagnostics.push(diagnostic);
+                    break;
+                }
+            }
+        }
+        return diagnostics;
+    }
+
+    placeTmp06CompatibilityWarnings(document) {
+        let diagnostics = this.placeTmp06LengthWarnings(document);
+        diagnostics = diagnostics.concat(this.placeTmp06incompatiblePseudoOpWarnings(document));
         this._tmpxDiagnostics.set(document.uri, diagnostics);
     }
 
@@ -919,7 +947,7 @@ class Extension {
                 asciiCursorPos += 2;
                 petsciiCursorPos++;
             }else if (asciiBuffer[asciiCursorPos] >= 97 && asciiBuffer[asciiCursorPos] < 122) {
-                petsciiBuffer.writeUInt8(asciiBuffer[asciiCursorPos] - 32, petsciiCursorPos); //To upercase ascii so it becomes lowercase Petscii
+                petsciiBuffer.writeUInt8(asciiBuffer[asciiCursorPos] - 32, petsciiCursorPos); //To uppercase ascii so it becomes lowercase Petscii
                 asciiCursorPos++;
                 petsciiCursorPos++;
             }else if (asciiBuffer[asciiCursorPos] >= 65 && asciiBuffer[asciiCursorPos] < 90) {
@@ -938,7 +966,7 @@ class Extension {
     }
 
     #makeDiskMenuItemName(name, maxNameLength = 16) {
-        return name.substring(0, maxNameLength);
+        return name.substring(0, maxNameLength).split('.')[0].toUpperCase();
     }
 
     async #binaryStringToByteStatementsString(filePath, skipByteCount = 0) {
@@ -1027,7 +1055,7 @@ class Extension {
     }
 
     async makeProgramDisk() {
-        const {Disk} = require('../disk/disk');
+        const d64io = require('../disk/disk');
         const diskTrackCount = 35;
         const diskImageType = "d64";
         const project = this._project;
@@ -1035,7 +1063,7 @@ class Extension {
         const includes = project.includes.slice(1);
         logger.info("Creating program disk...");
         try {
-            let disk = new Disk();
+            let disk = new d64io.Disk();
             disk.create(this.#makeDiskMenuItemName(project.name), "01", diskTrackCount);
             disk.storeFile(project.outfile, this.#makeDiskMenuItemName(path.basename(project.outfile)));
             for (const assetFile of includes) {
@@ -1049,24 +1077,25 @@ class Extension {
     }
 
     async makeCodeDisk(flattenAsmSources = true, flattenBinaryIncludes = false, includeAssets = true) {
-        const {Disk} = require('../disk/disk');
+        const d64io = require('../disk/disk');
         const diskTrackCount = 35;
         const diskImageType = "d64";
         const project = this._project;
         const sources = project.sources; //If project has not been build at least once sources will be empty.
+        const sourceFileType = d64io.File.TYPE_SEQ;
         const includes = project.includes.slice(1);
         logger.info("Creating source code disk...");
         try {
-            let disk = new Disk();
+            let disk = new d64io.Disk();
             disk.create(this.#makeDiskMenuItemName(project.name), "02", diskTrackCount);
             for (const sourceFile of sources) {
-                disk.storeFile(sourceFile.filename, this.#makeDiskMenuItemName(path.basename(sourceFile.filename)), "seq"); 
+                disk.storeFile(sourceFile.filename, this.#makeDiskMenuItemName(path.basename(sourceFile.filename)), sourceFileType); 
             }
             if (flattenAsmSources && project.toolkit.name == "tmpx") {
                 const mainSourceFilename = sources[0].filename;
                 const flatFileBasename = "flat" + path.basename(mainSourceFilename);
                 const flatMain = this.#flattenCode(mainSourceFilename, flattenBinaryIncludes);
-                disk.writeFile(this.#makeDiskMenuItemName(flatFileBasename), "seq", this.#asciiToPetscii(flatMain));
+                disk.writeFile(this.#makeDiskMenuItemName(flatFileBasename), sourceFileType, this.#asciiToPetscii(flatMain));
             }
             if (includeAssets) {
                 for (const assetFile of includes) {
