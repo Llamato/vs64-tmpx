@@ -907,12 +907,13 @@ class Extension {
         if(document.languageId != "asm") return;
         const diagnostics = [];
         for (let lineIndex = 0; lineIndex < document.lineCount; lineIndex++) {
-            const lineStart = new vscode.Position(lineIndex, 0);
             const line = document.lineAt(lineIndex);
             for (let incompatiblePseudoOp of incompatiblePseudoOps) {
-                if (line.text.trimStart().startsWith(incompatiblePseudoOp)) {
-                    const opEnd = new vscode.Position(lineIndex, incompatiblePseudoOp.length);
-                    const range = new vscode.Range(lineStart, opEnd);
+                const lineContent = line.text.trimStart();
+                if (lineContent.startsWith(incompatiblePseudoOp)) {
+                    const opStart = line.text.length - lineContent.length;
+                    const opEnd = opStart + incompatiblePseudoOp.length;
+                    const range = new vscode.Range(new vscode.Position(lineIndex, opStart), new vscode.Position(lineIndex, opEnd));
                     const diagnostic = new vscode.Diagnostic(range, "incompatible pseudo-op: " + incompatiblePseudoOp, vscode.DiagnosticSeverity.Warning);
                     diagnostic.source = 'vs64-tmpx';
                     diagnostics.push(diagnostic);
@@ -1018,12 +1019,12 @@ class Extension {
             if (line.startsWith(".include ")) {
                 const includePath = line.split(" ")[1].replaceAll('"', '');
                 const absPath = project.basedir + path.sep + includePath;
-                outputString += ";Start of include: " + includePath + "\n";
+                outputString += ";StartInc: " + includePath + "\n";
                 const includeOutput = this.#flattenCode(absPath);
                 if (includeOutput == "") {
                     outputString += line;
                 } else {
-                    outputString += includeOutput + ";End of Include: " + includePath;
+                    outputString += includeOutput + ";EndInc: " + includePath;
                 }
             } else if (flattenBinaryIncludes && line.startsWith(".binary")) {
                 const includeParams = line.split();
