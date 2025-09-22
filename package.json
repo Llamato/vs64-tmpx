@@ -169,6 +169,12 @@
 				"command": "vs64.makeCodeDisk",
 				"title": "Create Source Code Disk",
 				"category": "VS64"
+			},
+			{
+				"command": "vs64.insertBasicStarter",
+				"title": "Insert Basic Starter",
+				"category": "VS64",
+				"args": "basicLineNumber"
 			}
 		],
 		"menus": {

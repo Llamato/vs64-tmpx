@@ -142,6 +142,7 @@ class Extension {
             subscriptions.push(vscode.languages.registerCompletionItemProvider(Constants.AssemblerLanguageId, languageFeatureProvider));
             subscriptions.push(vscode.languages.registerDocumentSymbolProvider(Constants.AssemblerLanguageId, languageFeatureProvider));
 
+
             // BASIC
             subscriptions.push(vscode.languages.registerDefinitionProvider(Constants.BasicLanguageId, languageFeatureProvider));
             subscriptions.push(vscode.languages.registerReferenceProvider(Constants.BasicLanguageId, languageFeatureProvider));
@@ -253,15 +254,38 @@ class Extension {
             subscriptions.push(vscode.commands.registerCommand("vs64.cleanProject", function() {
                 thisInstance.triggerClean();
             }));
+
+            // register Extra commands
             subscriptions.push(vscode.commands.registerCommand("vs64.makeProgramDisk", function() {
                 thisInstance.makeProgramDisk();
             }));
             subscriptions.push(vscode.commands.registerCommand("vs64.makeCodeDisk", function() {
                 thisInstance.makeCodeDisk();
             }));
+            subscriptions.push(vscode.commands.registerTextEditorCommand('vs64.insertBasicStarter', async (editor, edit) => {
+                const defaultLineNumber = 1973;
+                const defaultPrgStartAddress = 2062;
+                const basicLineNumberString = await vscode.window.showInputBox({
+                    prompt: "Basic Line Number",
+                    placeHolder: defaultLineNumber.toString()
+                });
+                const prgStartAddressString = await vscode.window.showInputBox({
+                    prompt: "Program start address",
+                    placeHolder: defaultPrgStartAddress.toString()
+                });
+                let basicLineNumber = defaultLineNumber;
+                if (basicLineNumberString != null && basicLineNumberString != '' && !isNaN(basicLineNumberString)) {
+                    basicLineNumber = parseInt(basicLineNumberString);
+                }
+                let prgStartAddress = defaultPrgStartAddress;
+                if (basicLineNumberString != null && basicLineNumberString != '' && !isNaN(prgStartAddressString)) {
+                    prgStartAddress = parseInt(prgStartAddressString);
+                }
+                this.insertBasicStarter(editor, edit, basicLineNumber, prgStartAddress);
+            }));
         }
 
-        //Register tmpx specifics
+        //register tmpx specifics
         if(this._settings.tmp06CompatibilityMode){
             this._tmpxDiagnostics = vscode.languages.createDiagnosticCollection('vs64-tmpx');
             subscriptions.push(this._tmpxDiagnostics);
@@ -1108,6 +1132,56 @@ class Extension {
         }catch (err) {
             logger.error("failed to create source code disk: " + err);
         }
+    }
+
+    #makeBasicStarterString(basicLine, prgAddress) {
+        const byteDelimiter = ","
+        let basicStarterString = "";
+
+        //Determine correct byte prefix
+        let byteStatement = ".byte";
+        if (this._project.toolkit.name == "acme") {
+            byteStatement = "!byte";
+        }
+
+        //Next line address
+        const nextLineAddressBytesString = "$0c" + byteDelimiter + "$08";
+
+        //Line Number
+        let basicLineHex = basicLine.toString(16);
+        while (basicLineHex.length < 4) {
+            basicLineHex = '0' + basicLineHex
+        }
+        const basicLineHighByte = basicLineHex.substring(0, 2);
+        const basicLineLowByte = basicLineHex.substring(2, 4);
+        const basicLineByteString = '$' +basicLineLowByte + byteDelimiter + '$' + basicLineHighByte;
+        
+        //Sys Command
+        const sysToken = "$9e";
+        const blankChar = "$20";
+
+        //Program address 
+        const prgAddressString = prgAddress.toString();
+        const prgAddressByteStrings = []
+        for (let digit = 0; digit < prgAddressString.length; digit++) {
+            const prgAddressByteString = "$" + prgAddressString.charCodeAt(digit).toString(16);
+            prgAddressByteStrings.push(prgAddressByteString);
+        }
+
+        //End of line
+        const lineEndToken = "$00";
+
+        //Combining it all
+        basicStarterString += byteStatement + ' ' + nextLineAddressBytesString + byteDelimiter + basicLineByteString + byteDelimiter + sysToken + byteDelimiter + blankChar + ' \n';
+        basicStarterString += byteStatement + ' ' + prgAddressByteStrings.join(byteDelimiter) + byteDelimiter + lineEndToken;
+        return basicStarterString;
+    }
+
+    async insertBasicStarter(editor, edit, basicLine, prgAddress) {
+        const basicStarterString = this.#makeBasicStarterString(basicLine, prgAddress);
+        editor.edit( editBuilder => {
+            editBuilder.insert(editor.selection.active, basicStarterString);
+        });
     }
 }
 
